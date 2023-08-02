@@ -224,7 +224,7 @@ def epsilon_closure(state, epsilon_transitions):
     return closure
 
 def convert_epsilon_nfa_to_nfa(epsilon_nfa):
-    epsilon_transitions = [(src, letter, dest) for src, letter, dest in epsilon_nfa['transition_function'] if letter == 'ε']
+    epsilon_transitions = [(src, letter, dest) for src, letter, dest in epsilon_nfa['transition_function'] if letter == '#']
 
     # Calculate epsilon closures for all states
     epsilon_closures = {state: epsilon_closure(state, epsilon_transitions) \
@@ -268,17 +268,16 @@ def convert_epsilon_nfa_to_nfa(epsilon_nfa):
      
     final_nfa = {
         'states': (list(nfa["states"])),
-        'letters': [letter for letter in epsilon_nfa['letters'] if letter != 'ε'],
+        'letters': [letter for letter in epsilon_nfa['letters'] if letter != '#'],
         'transition_function': nfa['transition_function'],
         'start_states': list(nfa['start_states']),
         'final_states': list(nfa['final_states'])
     }
-
     return final_nfa
 
-def output_nfa(final_nfa):
-    with open(sys.argv[2], 'w') as outjson:
-        outjson.write(json.dumps(final_nfa, indent=4))
+def output_nfa(arg,file):
+    with open(sys.argv[file], 'w') as outjson:
+        outjson.write(json.dumps(arg, indent=4))
 
 
 if __name__ == "__main__":
@@ -288,5 +287,8 @@ if __name__ == "__main__":
     et = create_exp_tree(pr)
     fa = eval_regex(et)
     arrange_nfa(fa)
+    global final_nfa
+    #print Epsilon-nfa
+    output_nfa(nfa,2)
     final_nfa=convert_epsilon_nfa_to_nfa(nfa)
-    output_nfa(final_nfa)
+    output_nfa(final_nfa,3)
