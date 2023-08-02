@@ -29,4 +29,8 @@ Overview
 4. We pass the root of the expression tree to eval_regex().
 5. According to the operation encountered, we go to the respective function to evaluate it.
 6. Each state consists of dictionary containing (input, next state ) pairs.
+7. Each computation returns its start and finish index.
+8. In do_concat(), we concatenate the left and right side of "." after computing them. The the end of left is joined to start of right using epsilon "#".
+9. In do_union(), we compute the union of left and right side of "." after computing them. The the end of left is joined to start of right using epsilon "#".
+10. 
 ```

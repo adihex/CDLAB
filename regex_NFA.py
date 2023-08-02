@@ -11,11 +11,9 @@ class operatorType:
     UNION = 3
     KLEEN = 4
 
-
 class NFAState:
     def __init__(self):
         self.next_state = {}
-
 
 class ExpressionTree:
 
@@ -24,7 +22,6 @@ class ExpressionTree:
         self.value = value
         self.left = None
         self.right = None
-
 
 def create_exp_tree(regexp):
     stack = []
@@ -45,11 +42,9 @@ def create_exp_tree(regexp):
             stack.append(ExpressionTree(operatorType.SYMBOL, c))
     return stack[0]
 
-
 def higher_precedence(a, b):
     p = ["/", ".", "*"]
     return p.index(a) > p.index(b)
-
 
 def eval_regex(exp_t):
     if exp_t.operatorType == operatorType.CONCAT:
@@ -61,7 +56,6 @@ def eval_regex(exp_t):
     else:
         return eval_symbol(exp_t)
 
-
 def eval_symbol(exp_t):
     start = NFAState()
     end = NFAState()
@@ -69,14 +63,12 @@ def eval_symbol(exp_t):
     start.next_state[exp_t.value] = [end]
     return start, end
 
-
 def do_concat(exp_t):
     left_nfa = eval_regex(exp_t.left)
     right_nfa = eval_regex(exp_t.right)
 
     left_nfa[1].next_state['#'] = [right_nfa[0]]
     return left_nfa[0], right_nfa[1]
-
 
 def do_union(exp_t):
     start = NFAState()
@@ -91,7 +83,6 @@ def do_union(exp_t):
 
     return start, end
 
-
 def do_star(exp_t):
     start = NFAState()
     end = NFAState()
@@ -102,7 +93,6 @@ def do_star(exp_t):
     starred_nfa[1].next_state['#'] = [starred_nfa[0], end]
 
     return start, end
-
 
 def arrange_transitions(state, states_done, symbol_table):
     global nfa
@@ -127,10 +117,8 @@ def arrange_transitions(state, states_done, symbol_table):
         for ns in state.next_state[symbol]:
             arrange_transitions(ns, states_done, symbol_table)
 
-
 def notation_to_num(str):
     return int(str[1:])
-
 
 def final_st_dfs():
     global nfa
@@ -211,7 +199,7 @@ def compute_postfix(regexp):
     return res
 
 
-def polish_regex(regex):
+def postfix_regex(regex):
     reg = add_concat(regex)
     regg = compute_postfix(reg)
     return regg
@@ -223,17 +211,82 @@ def read_regexp():
     return regex
 
 
-def output_nfa():
+def epsilon_closure(state, epsilon_transitions):
+    closure = set()
+    stack = [state]
+    while stack:
+        current_state = stack.pop()
+        closure.add(current_state)
+        for transition in epsilon_transitions:
+            if transition[0] == current_state and transition[1] == '#'\
+                    and transition[2] not in closure:
+                stack.append(transition[2])
+    return closure
+
+def convert_epsilon_nfa_to_nfa(epsilon_nfa):
+    epsilon_transitions = [(src, letter, dest) for src, letter, dest in epsilon_nfa['transition_function'] if letter == 'ε']
+
+    # Calculate epsilon closures for all states
+    epsilon_closures = {state: epsilon_closure(state, epsilon_transitions) \
+            for state in epsilon_nfa['states']}
+    # print(epsilon_closure)
+    # for state in epsilon_nfa['states']:
+        # print(f"Epsilon closure of {state}: {epsilon_closures[state]}")
+    # Construct the new NFA
     global nfa
+    nfa = {
+        'states': sorted(list(epsilon_nfa["states"])),
+        'alphabet': [letter for letter in epsilon_nfa['letters'] if letter != '#'],
+        'transition_function': [],
+        'start_states': epsilon_nfa['start_states'],
+        'final_states': set(epsilon_nfa['final_states'])
+    }
+
+    for state in sorted(list(epsilon_nfa["states"])):
+        for letter in nfa['alphabet']:
+            target_states = epsilon_closures[state]
+            # print(state, " -> ",letter," - ",target_states," - ")
+            input_states = set()
+            ans_states = set()
+            for t_state in list(target_states):
+                for transition in epsilon_nfa['transition_function']:
+                    if transition[0] == t_state and transition[1] == letter:
+                        input_states.add(transition[2])
+                        # print(input_states,"-> ","add")
+
+
+            # print(input_states)
+
+            for i_state in input_states:
+                ans_states=ans_states.union(set(epsilon_closures[i_state]))
+            for a_state in ans_states:
+                nfa['transition_function'].append((state, letter, a_state))
+    for state in epsilon_nfa['states']:
+        if(len(epsilon_closures[state].intersection(set(nfa['final_states'])))>0):
+            nfa['final_states'].add(state)
+
+     
+    final_nfa = {
+        'states': (list(nfa["states"])),
+        'letters': [letter for letter in epsilon_nfa['letters'] if letter != 'ε'],
+        'transition_function': nfa['transition_function'],
+        'start_states': list(nfa['start_states']),
+        'final_states': list(nfa['final_states'])
+    }
+
+    return final_nfa
+
+def output_nfa(final_nfa):
     with open(sys.argv[2], 'w') as outjson:
-        outjson.write(json.dumps(nfa, indent=4))
+        outjson.write(json.dumps(final_nfa, indent=4))
 
 
 if __name__ == "__main__":
     r = read_regexp()
     reg = r['regex']
-    pr = polish_regex(reg)
+    pr = postfix_regex(reg)
     et = create_exp_tree(pr)
     fa = eval_regex(et)
     arrange_nfa(fa)
-    output_nfa()
+    final_nfa=convert_epsilon_nfa_to_nfa(nfa)
+    output_nfa(final_nfa)
